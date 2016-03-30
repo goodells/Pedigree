@@ -23,7 +23,7 @@ Alternatively, you can clone the project into a directory called `pedigree` wher
 
 ## Usage
 
-### Declaring of roles
+### Declaring roles
 
 Classes and interfaces must be declared as such before they can be used via the `.declareClass` and `.declareInterface` methods, respectively:
 
