@@ -5,9 +5,11 @@ A bare-bones inheritance framework for JavaScript
 ## Highlights
 
 * Support for classes and interfaces
-* Does not modify default constructors
+* Cyclic extension is forbidden
+* Does not modify any constructors or default objects
 * Tiny file size
 * No third-party dependencies (only `util`)
+* Method-chaining interface
 
 
 ## Installation
@@ -23,80 +25,121 @@ Alternatively, you can clone the project into a directory called `pedigree` wher
 
 ## Usage
 
+### A note on method-chaining
+
+To interact with a type, you will first need to call `pedigree(Type)`.  This returns a cursor object whose methods can be chained together.  For example, you may do something like this:
+
+```javascript
+pedigree(Type)
+	.asClass()
+	.extends(AnotherType)
+	.implements(ISomeInterface);
+```
+
+This is functionally equivalent to the following:
+
+```javascript
+pedigree(Type).asClass();
+pedigree(Type).extends(AnotherType);
+pedigree(Type).implements(ISomeInterface);
+```
+
+Please don't do that.
+
 ### Declaring roles
 
-Classes and interfaces must be declared as such before they can be used via the `.declareClass` and `.declareInterface` methods, respectively:
+Classes and interfaces must be declared as such before they can be used via the `.asClass` and `.asInterface` methods, respectively:
 
 ```javascript
-function Weapon() {
+class Weapon {
+	attack(enemy) {
+		enemy.health -= this.damage(enemy);
+	}
 
+	getDamage(enemy) {} // @abstract
 }
 
-pedigree.declareClass(Weapon);
+pedigree(Weapon).asClass();
 ```
 
 ```javascript
-function IWieldable() {}
+class IWieldable {
+	isWielded() {}
+}
 
-pedigree.declareInterface(IWieldable);
+pedigree(IWieldable).asInterface();
 ```
+
+Once a role is declared, it cannot be altered.
 
 ### Determining roles
-The role of a constructor can be determined using the `.isClass` and `.isInterface` methods:
+
+The role of a type can be determined using the `.isClass` and `.isInterface` properties:
 
 ```javascript
-pedigree.isClass(Weapon); // true
+pedigree(Weapon).isClass; // true
 ```
 
 ```javascript
-pedigree.isInterface(IWieldable); // true
+pedigree(IWieldable).isInterface; // true
 ```
+
+By default, all types are classes.
 
 ### Defining relationships
 
-A constructor can extend a class and implement an interface with the `.extend` and `.implement` methods.  Remember to `call` the base class constructor:
+A class can extend a class and implement an interface.  An interface can only extend other interfaces.  These actions are performed with the `.extends` and `.implements` methods:
 
 ```javascript
-function Sword() {
-	Weapon.call(this);
+class Sword {
+	constructor() {
+		super();
+	}
+
+	getDamage(enemy) {
+		return 30; // Equally effective against all enemies
+	}
 }
 
-pedigree.declareClass(Sword);
-
-pedigree.extend(Sword, Weapon);
-pedigree.implement(Sword, IUsable);
+pedigree(Sword)
+	.asClass()
+	.extends(Weapon)
+	.implements(IUsable);
 ```
 
 ```javascript
-function IUsable() {}
+class IUsable {
+	use() {}
+}
 
-pedigree.declareInterface(IUsable);
-
-pedigree.implement(IUsable, IWieldable);
+pedigree(IUsable)
+	.asInterface()
+	.extends(IWieldable);
 ```
 
-It is important to note that a class can `extend` at most one base class, but can `implement` an arbitrary number of interfaces.  Interfaces can `implement` other interfaces, even though that nomenclature is not widely used in real object-oriented languages.
+It is important to note that a class can extend at most one base class, but can implement an arbitrary number of interfaces.
 
 ### Determining relationships
 
-The relationship between two constructors or an instance of a class and one constructor can be tested with the `.extends` and `.implements` methods:
+The relationship between two types can be tested with the `.doesExtend` and `.doesImplement` methods:
 
 ```javascript
-pedigree.extends(Sword, Weapon); // true
+pedigree(Sword).doesExtend(Weapon); // true
 
-pedigree.implements(Sword, IWieldable); // true
+pedigree(Sword).doesImplement(IWieldable); // true
 ```
 
+These methods are not do not follow the chaining pattern because they return a value.
 
 ## Shortcomings
 
-* Constructors of declared constructors *are* altered slightly, which may cause conflicts
 * Unimplemented methods on interfaces may not have any implementation
-* There is no support for enforcing abstract or virtual members'
+* There is no support for enforcing abstract or virtual members
+* It is not feasible to add support for using the `pedigree` function with instances of classes
 
 
 ## Contribution and support
 
-Please feel free to submit pull requests for new features.
+Please feel free to submit pull requests for new features, but do include tests.
 
 Contact sam@mangane.se for additional questions or support.

@@ -1,83 +1,207 @@
 var util = require("util");
 
 
-var pedigree = module.exports = {
-	labelClass: "__class",
-	labelInterface: "__interface",
-	propertyBase: "__extends",
-	propertyInterfaces: "__implements"
-};
-
-// Declaration
-var declareAs = function(object, label) {
-	object[label] = true;
-};
-
-pedigree.declareClass = function(object) {
-	declareAs(object, pedigree.labelClass);
-};
-
-pedigree.declareInterface = function(object) {
-	declareAs(object, pedigree.labelInterface);
-};
-
-// Modification
-pedigree.extend = function(constructor, constructorBase) {
-	// First, apply normal inheritance to keep compatibility with the instanceof operator
-	util.inherits(constructor, constructorBase);
-	
-	constructor[pedigree.propertyBase] = constructorBase;
-};
-
-pedigree.implement = function(constructor, constructorInterface) {
-	constructor[pedigree.propertyInterfaces] = (constructor[pedigree.propertyInterfaces] || []).concat([constructorInterface]);
-};
-
-// Operators
-pedigree.isClass = function(constructor) {
-	return constructor && constructor[pedigree.labelClass] === true;
-};
-
-pedigree.isInterface = function(constructor) {
-	return constructor && constructor[pedigree.labelInterface] === true;
-};
-
-var normalizeConstructor = function(constructor) {
-	if (constructor && !(constructor instanceof Function)) {
-		constructor = constructor.constructor;
+// Definitions
+var pedigree = module.exports = function(type) {
+	if (type && !type instanceof Function) {
+		type = type.constructor;
 	}
-	
-	return constructor;
+
+	return pedigree.definitions.get(type) || (function() {
+		var definition = new CursorDefinitionType(type);
+
+		pedigree.definitions.set(type, definition);
+
+		return definition;
+	})();
 };
 
-pedigree.extends = function(constructor, constructorBase) {
-	if (!pedigree.isClass(constructorBase)) {
+pedigree.definitions = new Map();
+
+// Roles
+pedigree.roleClass = Symbol();
+pedigree.roleInterface = Symbol();
+
+pedigree.roleDefault = pedigree.roleClass;
+
+
+class IllegalDeclarationException extends Error {
+	get message() {
+		return "Cannot declare a type with multiple roles";
+	}
+}
+
+class UndeclaredModificationException extends Error {
+	get message() {
+		return "Cannot define a relationship until a role is declared";
+	}
+}
+
+class MultipleExtensionError extends Error {
+	get message() {
+		return "A type cannot extend multiple classes";
+	}
+}
+
+class CyclicExtensionError extends Error {
+	get message() {
+		return "A type cannot transitively extend itself";
+	}
+}
+
+class IllegalImplementationError extends Error {
+	get message() {
+		return "Only a class can implement an interface";
+	}
+}
+
+class CursorDefinitionType {
+	constructor(type) {
+		this.type = type;
+		this.typeBase;
+		this.typesInterfaces = new Set();
+	}
+
+	// Role declaration
+	set role(role) {
+		this._role = role;
+	}
+
+	as(role) {
+		if (this._role && role !== this._role) {
+			throw new IllegalDeclarationException();
+		}
+
+		this.role = role;
+
+		return this;
+	}
+
+	asClass() {
+		return this.as(pedigree.roleClass);
+	}
+
+	asInterface() {
+		return this.as(pedigree.roleInterface);
+	}
+
+	// Role determination
+	get role() {
+		return this._role || pedigree.roleDefault;
+	}
+
+	get isClass() {
+		return this.role === pedigree.roleClass;
+	}
+
+	get isInterface() {
+		return this.role === pedigree.roleInterface;
+	}
+
+	// Relationship definition
+	extends(type) {
+		if (!type instanceof Function || pedigree(type).role !== this.role) {
+			throw new TypeError("A type can only extend a valid function that is of the same role");
+		} else if (pedigree(type).doesExtend(this.type)) {
+			throw new CyclicExtensionError();
+		}
+
+		switch (this.role) {
+			case pedigree.roleClass:
+				if (this.typeBase && this.typeBase !== type) {
+					throw new MultipleExtensionError();
+				}
+
+				util.inherits(this.type, type);
+
+				this.typeBase = type;
+
+				break;
+			case pedigree.roleInterface:
+				this.typesInterfaces.add(type);
+
+				break;
+			default:
+				throw new UndeclaredModificationException();
+		}
+
+		return this;
+	}
+
+	implements(type) {
+		if (!this.isClass) {
+			throw new IllegalImplementationError();
+		} else if (!type instanceof Function || !pedigree(type).isInterface) {
+			throw new TypeError("A class can only implement a valid interface");
+		}
+
+		this.typesInterfaces.add(type);
+
+		return this;
+	}
+
+	// Relationship determination
+	doesExtend(type) {
+		if (!type instanceof Function || pedigree(type).role !== this.role) {
+			return false;
+		} else if (type === this.type || this.type instanceof type) {
+			return true;
+		}
+
+		switch (this.role) {
+			case pedigree.roleClass:
+				if (!this.typeBase) {
+					return false;
+				}
+
+				return pedigree(this.typeBase).doesExtend(type);
+			case pedigree.roleInterface:
+				// This looks a little sloppy but breadth-first search is likely to be more efficient
+				var doesExtend = false;
+
+				this.typesInterfaces.forEach(function(typeInterface) {
+					if (!doesExtend || typeInterface === type) {
+						doesExtend = true;
+					}
+				});
+
+				if (doesExtend) {
+					return true;
+				}
+
+				this.typesInterfaces.forEach(function(typeInterface) {
+					if (!doesExtend || pedigree(typeInterface).doesExtend(type)) {
+						doesExtend = true;
+					}
+				});
+
+				return doesExtend;
+			default:
+				return false;
+		}
+	}
+
+	doesImplement(type) {
+		if (!type instanceof Function || !pedigree(type).isInterface || !this.isClass) {
+			return false;
+		} else if (this.typesInterfaces.has(type)) {
+			return true;
+		}
+
+		var doesImplement = false;
+
+		this.typesInterfaces.forEach(function(typeInterface) {
+			if (!doesImplement && pedigree(typeInterface).doesExtend(type)) {
+				doesImplement = true;
+			}
+		});
+
+		if (doesImplement) {
+			return true;
+		} else if (this.typeBase) {
+			return pedigree(this.typeBase).doesImplement(type);
+		}
+
 		return false;
 	}
-	
-	constructor = normalizeConstructor(constructor);
-	
-	if (!constructor || constructor === Object) {
-		return false;
-	}
-	
-	return constructor === constructorBase || pedigree.extends(constructor[pedigree.propertyBase], constructorBase);
-};
-
-pedigree.implements = function(constructor, constructorInterface) {
-	if (!pedigree.isInterface(constructorInterface)) {
-		return false;
-	}
-	
-	var constructor = normalizeConstructor(constructor);
-	
-	if (!constructor || constructor === Object) {
-		return false;
-	}
-	
-	var interfaces = constructor[pedigree.propertyInterfaces] || [];
-	
-	return interfaces.some(function(constructorInterfaceComparing) {
-		return constructorInterfaceComparing === constructorInterface || pedigree.implements(constructorInterfaceComparing, constructorInterface);
-	}) || pedigree.implements(constructor[pedigree.propertyBase], constructorInterface);
-};
+}

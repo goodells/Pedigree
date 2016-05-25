@@ -1,89 +1,97 @@
 var pedigree = require("pedigree");
 
 
-function IKillable() {};
 
-pedigree.declareInterface(IKillable);
+class IKillable {
+	kill() {}
+	getState() {}
+}
 
-IKillable.prototype.kill = function() {};
-IKillable.prototype.getState = function() {};
-
-
-function IRevivable() {};
-
-pedigree.declareInterface(IRevivable);
-
-pedigree.implement(IRevivable, IKillable);
-
-
-function IGrowable() {};
-
-pedigree.declareInterface(IGrowable);
-
-IGrowable.prototype.grow = function() {};
-IGrowable.prototype.getSize = function() {};
-
-
-function INameable() {};
-
-pedigree.declareInterface(INameable);
-
-INameable.prototype.getName = function() {};
+pedigree(IKillable)
+	.asInterface();
 
 
 
-function Organism() {
-	this.state = "alive";
-};
+class IRevivable {}
 
-pedigree.declareClass(Organism);
-
-pedigree.implement(Organism, IRevivable);
+pedigree(IRevivable)
+	.asInterface()
+	.extends(IKillable);
 
 
-function Animal() {
-	this.size = 1;
-	this.hunger = 100;
-};
 
-pedigree.declareClass(Animal);
+class IGrowable {
+	grow() {}
+	get size() {}
+}
 
-pedigree.implement(Animal, IGrowable);
-pedigree.extend(Animal, Organism);
-
-Animal.prototype.grow = function() {
-	this.size *= 2;
-};
-
-Animal.prototype.getSize = function() {
-	return this.size;
-};
-
-Animal.prototype.feed = function() {
-	this.hunger--;
-};
+pedigree(IGrowable)
+	.asInterface();
 
 
-// With inheritance
-function Human(name) {
-	Animal.call(this);
-	
-	this.name = name;
-	this.friends = new Set();
-};
 
-pedigree.declareClass(Human);
+class INameable {
+	get name() {}
+}
 
-pedigree.implement(Human, INameable);
-pedigree.extend(Human, Animal);
+pedigree(INameable)
+	.asInterface();
 
-Human.prototype.getName = function() {
-	return this.name;
-};
 
-Human.prototype.befriend = function(friend) {
-	this.friends.add(friend);
-};
+
+class Organism {
+	get state() {
+		return "alive";
+	}
+}
+
+pedigree(Organism)
+	.asClass()
+	.implements(IRevivable);
+
+
+
+class Animal {
+	constructor() {
+		this.size = 1;
+		this.hunger = 100;
+	}
+
+	grow() {
+		this.size *= 2;
+	}
+
+	feed() {
+		this.hunger--;
+	}
+}
+
+pedigree(Animal)
+	.asClass()
+	.extends(Organism)
+	.implements(IGrowable);
+
+
+
+class Human extends Animal {
+	constructor(name) {
+		super();
+
+		this.name = name;
+		this.friends = new Set();
+	}
+
+	befriend(friend) {
+		this.friends.add(friend);
+	}
+}
+
+pedigree(Human)
+	.asClass()
+	.extends(Animal)
+	.implements(INameable);
+
+
 
 // Check
 var sam = new Human("Sam");
@@ -94,13 +102,13 @@ var alex = new Human("Alex");
 
 alex.befriend(sam);
 
-console.log(alex.getName() + " is friends with " + sam.getName()); // Alex is friends with Sam
+console.log(alex.name + " is friends with " + sam.name); // Alex is friends with Sam
 
-console.log(pedigree.extends(alex, Human)); // true
-console.log(pedigree.extends(alex, Animal)); // true
-console.log(pedigree.extends(alex, Organism));
+console.log(pedigree(alex.constructor).doesExtend(Human));
+console.log(pedigree(alex.constructor).doesExtend(Animal));
+console.log(pedigree(alex.constructor).doesExtend(Organism));
 
-console.log(pedigree.implements(sam, INameable)); // true
-console.log(pedigree.implements(sam, IGrowable)); // true
-console.log(pedigree.implements(sam, IKillable)); // true
-console.log(pedigree.implements(sam, IRevivable)); // true
+console.log(pedigree(sam.constructor).doesImplement(INameable));
+console.log(pedigree(sam.constructor).doesImplement(IGrowable));
+console.log(pedigree(sam.constructor).doesImplement(IKillable));
+console.log(pedigree(sam.constructor).doesImplement(IRevivable));
