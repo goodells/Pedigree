@@ -16,11 +16,14 @@ let pedigree = module.exports = function(type) {
 	})();
 };
 
-pedigree.definitions = new Map();
+Object.assign(pedigree, {
+	// Definitions
+	definitions: new Map(),
 
-// Roles
-pedigree.roleClass = Symbol();
-pedigree.roleInterface = Symbol();
+	// Roles
+	roleClass: Symbol(),
+	roleInterface: Symbol()
+});
 
 pedigree.roleDefault = pedigree.roleClass;
 
@@ -205,3 +208,13 @@ class CursorDefinitionType {
 		return false;
 	}
 }
+
+
+Object.assign(pedigree, {
+	IllegalDeclarationException,
+	UndeclaredModificationException,
+	MultipleExtensionError,
+	CyclicExtensionError,
+	IllegalImplementationError,
+	CursorDefinitionType
+});
