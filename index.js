@@ -1,14 +1,14 @@
-var util = require("util");
+let util = require("util");
 
 
 // Definitions
-var pedigree = module.exports = function(type) {
+let pedigree = module.exports = function(type) {
 	if (type && !type instanceof Function) {
 		type = type.constructor;
 	}
 
 	return pedigree.definitions.get(type) || (function() {
-		var definition = new CursorDefinitionType(type);
+		let definition = new CursorDefinitionType(type);
 
 		pedigree.definitions.set(type, definition);
 
@@ -157,7 +157,7 @@ class CursorDefinitionType {
 				return pedigree(this.typeBase).doesExtend(type);
 			case pedigree.roleInterface:
 				// This looks a little sloppy but breadth-first search is likely to be more efficient
-				var doesExtend = false;
+				let doesExtend = false;
 
 				this.typesInterfaces.forEach(function(typeInterface) {
 					if (!doesExtend || typeInterface === type) {
@@ -188,7 +188,7 @@ class CursorDefinitionType {
 			return true;
 		}
 
-		var doesImplement = false;
+		let doesImplement = false;
 
 		this.typesInterfaces.forEach(function(typeInterface) {
 			if (!doesImplement && pedigree(typeInterface).doesExtend(type)) {

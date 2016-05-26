@@ -1,4 +1,4 @@
-var pedigree = require("pedigree");
+let pedigree = require("pedigree");
 
 
 
@@ -94,11 +94,11 @@ pedigree(Human)
 
 
 // Check
-var sam = new Human("Sam");
+let sam = new Human("Sam");
 
 sam.feed();
 
-var alex = new Human("Alex");
+let alex = new Human("Alex");
 
 alex.befriend(sam);
 
