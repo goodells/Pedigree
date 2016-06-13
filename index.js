@@ -3,7 +3,9 @@ let util = require("util");
 
 // Definitions
 let pedigree = module.exports = function(type) {
-	if (type && !type instanceof Function) {
+	if (!type) {
+		return null;
+	} else if (!type instanceof Function) {
 		type = type.constructor;
 	}
 
@@ -191,21 +193,9 @@ class CursorDefinitionType {
 			return true;
 		}
 
-		let doesImplement = false;
-
-		this.typesInterfaces.forEach(function(typeInterface) {
-			if (!doesImplement && pedigree(typeInterface).doesExtend(type)) {
-				doesImplement = true;
-			}
-		});
-
-		if (doesImplement) {
-			return true;
-		} else if (this.typeBase) {
-			return pedigree(this.typeBase).doesImplement(type);
-		}
-
-		return false;
+		return Array.from(this.typesInterfaces.values()).some(function(typeInterface) {
+			return pedigree(typeInterface).doesExtend(type);
+		}) || (this.typeBase && pedigree(this.typeBase).doesImplement(type));
 	}
 }
 
